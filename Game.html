@@ -1,0 +1,249 @@
+
+<html>
+<head>
+<title>Subsonic</title>
+
+<style>
+body {
+  margin: 0;
+  background: #0f0f0f;
+  overflow: hidden;
+  font-family: Arial;
+  color: white;
+  text-align: center;
+}
+
+h1 {
+  margin: 10px;
+  color: #00ffcc;
+  text-shadow: 0 0 15px #00ffcc;
+}
+
+.game {
+  width: 300px;
+  height: 500px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #1a1a1a 0px,
+    #1a1a1a 40px,
+    #333 40px,
+    #333 80px
+  );
+  animation: roadMove 0.5s linear infinite;
+  margin: auto;
+  position: relative;
+  overflow: hidden;
+  border: 3px solid #00ffcc;
+  box-shadow: 0 0 25px #00ffcc;
+}
+
+@keyframes roadMove {
+  from { background-position-y: 0; }
+  to { background-position-y: 80px; }
+}
+
+.car {
+  width: 50px;
+  height: 80px;
+  background: linear-gradient(red, darkred);
+  position: absolute;
+  bottom: 10px;
+  left: 125px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px red;
+}
+
+.obstacle {
+  width: 50px;
+  height: 80px;
+  background: linear-gradient(yellow, orange);
+  position: absolute;
+  top: -100px;
+  border-radius: 10px;
+  box-shadow: 0 0 15px orange;
+}
+
+button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background: #00ffcc;
+  border: none;
+  cursor: pointer;
+  display: none;
+  font-weight: bold;
+}
+
+#info {
+  margin: 5px;
+  font-size: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🏎️ Racing Game</h1>
+<p>Use Arrow Keys</p>
+<p id="info">Score: 0 | Level: 1</p>
+
+<div class="game" id="gameArea">
+  <div class="car" id="car"></div>
+</div>
+
+<button onclick="restartGame()" id="restartBtn">Restart Game</button>
+
+<!-- 🎵 Background Music -->
+<audio id="bgMusic" src="Vaahin.mp3" loop></audio>
+
+<!-- 💥 Crash Sound -->
+<audio id="crashSound" src="carcrash.mp3"></audio>
+
+<script>
+
+let car = document.getElementById("car");
+let gameArea = document.getElementById("gameArea");
+let info = document.getElementById("info");
+let restartBtn = document.getElementById("restartBtn");
+let bgMusic = document.getElementById("bgMusic");
+let crashSound = document.getElementById("crashSound");
+
+let carPosition = 125;
+let score = 0;
+let level = 1;
+let speed = 5;
+let nextLevelScore = 10;
+let gameRunning = true;
+let musicStarted = false;
+
+let lanes = [0, 50, 100, 150, 200, 250];
+
+// Start music on first key press
+document.addEventListener("keydown", function(event) {
+
+  if (!musicStarted) {
+    bgMusic.volume = 0.4;
+    bgMusic.play().catch(() => {});
+    musicStarted = true;
+    bgMusic.playbackRate = 1 + (level * 0.05);
+  }
+
+  if (!gameRunning) return;
+
+  if (event.key === "ArrowLeft" && carPosition > 0) {
+    carPosition -= 50;
+  }
+
+  if (event.key === "ArrowRight" && carPosition < 250) {
+    carPosition += 50;
+  }
+
+  car.style.left = carPosition + "px";
+});
+
+function createObstacle() {
+
+  let obstacle = document.createElement("div");
+  obstacle.classList.add("obstacle");
+
+  let randomLane = lanes[Math.floor(Math.random() * lanes.length)];
+  obstacle.style.left = randomLane + "px";
+
+  gameArea.appendChild(obstacle);
+
+  let obstaclePosition = -100;
+
+  let move = setInterval(function() {
+
+    if (!gameRunning) {
+      clearInterval(move);
+      return;
+    }
+
+    obstaclePosition += speed;
+    obstacle.style.top = obstaclePosition + "px";
+
+    // Proper Collision Detection
+    let carRect = car.getBoundingClientRect();
+    let obstacleRect = obstacle.getBoundingClientRect();
+
+    if (
+      carRect.left < obstacleRect.right &&
+      carRect.right > obstacleRect.left &&
+      carRect.top < obstacleRect.bottom &&
+      carRect.bottom > obstacleRect.top
+    ) {
+      endGame();
+    }
+
+    if (obstaclePosition > 500) {
+      obstacle.remove();
+      clearInterval(move);
+    }
+
+  }, 20);
+}
+
+function endGame() {
+  gameRunning = false;
+
+  crashSound.currentTime = 0;
+  crashSound.play();
+
+  bgMusic.pause();
+
+  car.style.background = "orange";
+  car.style.boxShadow = "0 0 30px red";
+
+  info.innerText = "💥 GAME OVER | Score: " + score + " | Level: " + level;
+
+  restartBtn.style.display = "inline-block";
+}
+
+function restartGame() {
+
+  document.querySelectorAll(".obstacle").forEach(o => o.remove());
+
+  score = 0;
+  level = 1;
+  speed = 5;
+  nextLevelScore = 10;
+  gameRunning = true;
+  musicStarted = false;
+
+  carPosition = 125;
+  car.style.left = carPosition + "px";
+  car.style.background = "linear-gradient(red, darkred)";
+  car.style.boxShadow = "0 0 15px red";
+
+  info.innerText = "Score: 0 | Level: 1";
+  restartBtn.style.display = "none";
+
+  bgMusic.currentTime = 0;
+  bgMusic.playbackRate = 1;
+}
+
+// Game Loop
+setInterval(function() {
+
+  if (!gameRunning) return;
+
+  createObstacle();
+  score += level;
+
+  if (score >= nextLevelScore) {
+    level++;
+    speed += 1;
+    nextLevelScore += 20;
+
+    // Music speeds up with level
+    bgMusic.playbackRate = 1 + (level * 0.05);
+  }
+
+  info.innerText = "Score: " + score + " | Level: " + level;
+
+}, 1000);
+
+</script>
+
+</body>
+</html>
